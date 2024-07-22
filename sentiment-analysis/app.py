@@ -31,14 +31,17 @@ data_train_path = "./Data/imdb/train"
 data_test_path = "./Data/imdb/test"
 max_length = 256
 test_size = 0.25
+data_files = {'train':'train-00000-of-00001.parquet',
+              'test':'test-00000-of-00001.parquet'}
 
 class SentimentAnalyzer:
-    def __init__(self, max_length, test_size, model_path, data_train_path, data_test_path):
+    def __init__(self, max_length, test_size, model_path, data_train_path, data_test_path, data_files):
         self.max_length = max_length
         self.test_size = test_size
         self.model_path = model_path
         self.data_train_path = data_train_path
         self.data_test_path = data_test_path
+        self.data_files = data_files
         self.tokenizer = torchtext.data.utils.get_tokenizer("basic_english")
         
         # self.train_model = Train_LSTM(max_length, test_size)
@@ -47,9 +50,8 @@ class SentimentAnalyzer:
         self._init_model()
     
     def _prepare_data(self):
-        # train_data, test_data = datasets.load_dataset("imdb", split=["train", "test"])
-        train_data = load_from_disk(self.data_train_path)
-        test_data = load_from_disk(self.data_test_path)
+        train_data, test_data = datasets.load_dataset('parquet', data_dir=r'E:\aHieu\pytorch\sentiment-analysis\Data1\imdb\plain_text', 
+                                                      data_files=self.data_files, split=["train", "test"])
         
         train_data = train_data.map(
             self.tokenize_example, fn_kwargs={"tokenizer": self.tokenizer, "max_length": self.max_length}
@@ -182,14 +184,44 @@ class SentimentAnalyzer:
         return predicted_class, predicted_probability
     
     def result_predict_sentiment(self, text):
-        return self.predict_sentiment(text, self.model, self.tokenizer, self.vocab, device)[0]
+        return self.predict_sentiment(text, self.model, self.tokenizer, self.vocab, device)
 
 
-sentiment_analysis = SentimentAnalyzer(max_length, test_size, model_path, data_train_path, data_test_path)
+# sentiment_analysis = SentimentAnalyzer(max_length, test_size, model_path, data_train_path, data_test_path)
 
 
 # text = "This film is terrible!"
 
 # text1 = "This film is good!"
 # print(sentiment_analysis.result_predict_sentiment(text1))
+
+
+example_sentences = [
+    "I love this product! It's amazing.",
+    "This is the worst experience I've ever had.",
+    "I'm not sure if I like this or not.",
+    "The quality of the item is fantastic.",
+    "I will never buy this again."
+]
+
+
 st.title("Sentiment Analysis Application")
+
+example_choice = st.selectbox("Chọn một câu ví dụ:", [" "] + example_sentences)
+
+if example_choice:
+    st.query_params["user_input"] = example_choice
+
+user_input = st.query_params.get("user_input", '')
+
+user_input = st.text_input("Text: ", user_input)
+
+if st.button("Dự đoán"):
+    if user_input:
+        sentiment_analysis = SentimentAnalyzer(max_length, test_size, model_path, data_train_path, data_test_path, data_files)
+        predict, probability = sentiment_analysis.result_predict_sentiment(user_input)
+        result = 'Positive' if predict == 1 else 'Negative'
+        st.write(f"Kết quả dự đoán: {result}  \nScore: {probability}")
+    else:
+        st.write("Vui lòng nhập dữ liệu")
+
